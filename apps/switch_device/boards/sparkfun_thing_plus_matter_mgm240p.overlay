@@ -1,0 +1,22 @@
+/*
+ * External switch input for the SparkFun Thing Plus Matter MGM240P.
+ *
+ * The board has no user button, so wire a push button (or slide switch)
+ * between the PB00 pin (labelled "A4"/"34" on the Thing Plus header) and
+ * GND. The internal pull-up keeps the line high when the switch is open.
+ */
+
+/ {
+	buttons {
+		compatible = "gpio-keys";
+
+		user_switch0: user_switch_0 {
+			gpios = <&gpiob 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "External switch";
+		};
+	};
+
+	aliases {
+		sw0 = &user_switch0;
+	};
+};

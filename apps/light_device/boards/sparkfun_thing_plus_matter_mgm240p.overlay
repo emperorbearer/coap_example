@@ -1,0 +1,23 @@
+/*
+ * Relay output for the SparkFun Thing Plus Matter MGM240P.
+ *
+ * Connect the relay module's control input (IN) to the PB01 pin
+ * (labelled "A3"/"33" on the Thing Plus header), and share GND with the
+ * board. Use a relay module rated for 3.3 V logic, or add a transistor
+ * driver. The relay's switched contacts control the light.
+ */
+
+/ {
+	relays {
+		compatible = "gpio-leds";
+
+		relay_out0: relay_out_0 {
+			gpios = <&gpiob 1 GPIO_ACTIVE_HIGH>;
+			label = "Light relay";
+		};
+	};
+
+	aliases {
+		relay0 = &relay_out0;
+	};
+};

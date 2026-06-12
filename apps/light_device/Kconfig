@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "LwM2M Light (Relay) Device (SparkFun MGM240P)"
+
+config APP_LWM2M_SERVER_URL
+	string "LwM2M (Leshan) server URL"
+	default "coap://[fd00:db8::1]:5683"
+	help
+	  URL of the Leshan server, reachable from the Thread network.
+	  Use the IPv6 address of the host running leshan-server-demo.
+
+config APP_LWM2M_ENDPOINT
+	string "LwM2M endpoint client name"
+	default "mgm240-light"
+	help
+	  Endpoint name shown in the Leshan web UI.
+
+source "Kconfig.zephyr"

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "LwM2M Switch Device (SparkFun MGM240P)"
+
+config APP_LWM2M_SERVER_URL
+	string "LwM2M (Leshan) server URL"
+	default "coap://[fd00:db8::1]:5683"
+	help
+	  URL of the Leshan server, reachable from the Thread network.
+	  Use the IPv6 address of the host running leshan-server-demo.
+
+config APP_LWM2M_ENDPOINT
+	string "LwM2M endpoint client name"
+	default "mgm240-switch"
+	help
+	  Endpoint name shown in the Leshan web UI.
+
+config APP_SWITCH_TOGGLE_MODE
+	bool "Treat the switch input as a push button that toggles the state"
+	default y
+	help
+	  When enabled, each press of a momentary push button toggles the
+	  reported on/off state. When disabled, the reported state follows
+	  the level of the input pin (use this for slide/rocker switches).
+
+source "Kconfig.zephyr"
