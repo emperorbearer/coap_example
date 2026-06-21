@@ -1,0 +1,25 @@
+mainmenu "nRF54 CoAP/LWM2M SCD40 Air Quality Monitor"
+
+config APP_LWM2M_SERVER_URI
+    string "LWM2M Server URI"
+    default "coap://leshan.eclipseprojects.io:5683"
+    help
+      URI of the LWM2M server.
+      Examples:
+        coap://leshan.eclipseprojects.io:5683  (Leshan demo, no security)
+        coap://192.168.1.100:5683              (local server)
+
+config APP_LWM2M_ENDPOINT_NAME
+    string "LWM2M Endpoint Name"
+    default "nrf54-scd40-001"
+    help
+      LWM2M endpoint name used for device registration.
+
+config APP_SENSOR_READ_INTERVAL_SEC
+    int "Sensor read interval (seconds)"
+    default 30
+    range 5 3600
+    help
+      How often to read the SCD40 and update LWM2M object values.
+
+source "Kconfig.zephyr"

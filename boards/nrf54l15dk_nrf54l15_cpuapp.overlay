@@ -1,0 +1,40 @@
+/*
+ * SCD40 I2C overlay for nRF54L15DK (Application core)
+ *
+ * IMPORTANT: Verify the pin assignments match your hardware connections!
+ * Check nRF54L15DK schematic for the Arduino header I2C pin mapping.
+ *
+ * Default below uses TWIM20:
+ *   SDA -> P1.11   (Arduino A4)
+ *   SCL -> P1.12   (Arduino A5)
+ *
+ * SCD40 wiring:
+ *   SCD40 VDD  -> 3.3V
+ *   SCD40 GND  -> GND
+ *   SCD40 SDA  -> P1.11 (+ 4.7kΩ pull-up to 3.3V)
+ *   SCD40 SCL  -> P1.12 (+ 4.7kΩ pull-up to 3.3V)
+ *   SCD40 SEL  -> GND   (selects I2C mode)
+ */
+
+/ {
+    aliases {
+        scd40-i2c = &i2c20;
+    };
+};
+
+&i2c20 {
+    status = "okay";
+    clock-frequency = <I2C_BITRATE_STANDARD>; /* 100 kHz */
+    pinctrl-0 = <&i2c20_default>;
+    pinctrl-names = "default";
+};
+
+&pinctrl {
+    i2c20_default: i2c20_default {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 1, 11)>,
+                    <NRF_PSEL(TWIM_SCL, 1, 12)>;
+            bias-pull-up;
+        };
+    };
+};
