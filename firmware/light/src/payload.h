@@ -19,6 +19,12 @@ struct light_update {
 	bool on;
 	bool has_bri;
 	uint8_t bri;
+	bool has_rgb;        /* r,g,b all present */
+	uint8_t r, g, b;
+	bool has_w;
+	uint8_t w;
+	bool has_ct;
+	uint16_t ct;
 };
 
 /* Encode full state -> CBOR into buf. Returns bytes written or negative errno. */

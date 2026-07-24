@@ -6,7 +6,7 @@ unit-testable on its own. See ../docs/home-assistant.md.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import cbor2
 
@@ -21,6 +21,9 @@ class LightCfg:
     address: str            # IPv6 address or hostname of the light node
     name: str = ""
     brightness: bool = False
+    # HA color modes this light supports, e.g. ["rgbw"], ["rgb"],
+    # ["color_temp"], or a combination. Empty => no color.
+    color_modes: list = field(default_factory=list)
 
     @property
     def uri(self) -> str:
@@ -35,11 +38,24 @@ class LightCfg:
 
 
 def coap_state_to_ha(payload: bytes) -> dict:
-    """CBOR light state {"on":bool,"bri":int?} -> HA JSON light state."""
+    """CBOR light state -> HA JSON light state (with color/brightness)."""
     state = cbor2.loads(payload) if payload else {}
     ha = {"state": "ON" if state.get("on") else "OFF"}
     if "bri" in state:
         ha["brightness"] = int(state["bri"])
+
+    if "ct" in state:
+        ha["color_mode"] = "color_temp"
+        ha["color_temp"] = int(state["ct"])
+    elif all(k in state for k in ("r", "g", "b")):
+        color = {"r": int(state["r"]), "g": int(state["g"]),
+                 "b": int(state["b"])}
+        if "w" in state:
+            color["w"] = int(state["w"])
+            ha["color_mode"] = "rgbw"
+        else:
+            ha["color_mode"] = "rgb"
+        ha["color"] = color
     return ha
 
 
@@ -51,6 +67,13 @@ def ha_command_to_coap(payload: bytes) -> bytes:
         out["on"] = str(cmd["state"]).upper() == "ON"
     if "brightness" in cmd:
         out["bri"] = int(cmd["brightness"])
+    if "color_temp" in cmd:
+        out["ct"] = int(cmd["color_temp"])
+    if "color" in cmd and isinstance(cmd["color"], dict):
+        color = cmd["color"]
+        for ch in ("r", "g", "b", "w"):
+            if ch in color:
+                out[ch] = int(color[ch])
     out["src"] = "bridge"
     return cbor2.dumps(out)
 
@@ -70,7 +93,12 @@ def discovery_config(cfg: LightCfg) -> dict:
             "model": "Light Node",
         },
     }
-    if cfg.brightness:
+    if cfg.color_modes:
+        # With color modes, brightness is implied by HA; don't also set the
+        # brightness flag (they are mutually exclusive in the JSON schema).
+        conf["supported_color_modes"] = cfg.color_modes
+        conf["brightness_scale"] = 254
+    elif cfg.brightness:
         conf["brightness"] = True
         conf["brightness_scale"] = 254
     return conf

@@ -1,20 +1,56 @@
 /*
- * Light node pin mapping for the nRF54L15 DK.
- * Maps the board-agnostic aliases used by the firmware to real pins.
- * led0/sw0 already exist on the DK; we add the relay output alias.
+ * Light node = custom LED PCB (LED + nRF54L15), powered from a KC-certified
+ * SMPS DC rail. Four PWM channels drive R/G/B/W LED groups for color + dimming.
+ *
+ * This overlay targets the nRF54L15 DK for prototyping; on the custom PCB keep
+ * the same aliases and map them to the real LED-driver gate pins. Pins/channels
+ * below are examples — confirm against your schematic. See
+ * docs/hardware/light-node.md.
  */
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
 / {
 	aliases {
-		light-relay = &light_relay;
+		pwm-red = &led_r;
+		pwm-green = &led_g;
+		pwm-blue = &led_b;
+		pwm-white = &led_w;
 	};
 
-	light_relays {
-		compatible = "gpio-leds";
-		light_relay: relay_0 {
-			/* Route to the relay/SSR driver input. P1.10 here is an
-			 * example free header pin; adjust to the actual board. */
-			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-			label = "Light relay";
+	pwmleds {
+		compatible = "pwm-leds";
+		led_r: led_r { pwms = <&pwm20 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>; };
+		led_g: led_g { pwms = <&pwm20 1 PWM_MSEC(1) PWM_POLARITY_NORMAL>; };
+		led_b: led_b { pwms = <&pwm20 2 PWM_MSEC(1) PWM_POLARITY_NORMAL>; };
+		led_w: led_w { pwms = <&pwm21 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>; };
+	};
+};
+
+/* Enable two PWM instances and route their outputs to the LED-driver pins.
+ * Replace the psels with the actual pins used on the custom PCB. */
+&pwm20 {
+	status = "okay";
+	pinctrl-0 = <&pwm20_default>;
+	pinctrl-names = "default";
+};
+
+&pwm21 {
+	status = "okay";
+	pinctrl-0 = <&pwm21_default>;
+	pinctrl-names = "default";
+};
+
+&pinctrl {
+	pwm20_default: pwm20_default {
+		group1 {
+			psels = <NRF_PSEL(PWM_OUT0, 1, 4)>,
+				<NRF_PSEL(PWM_OUT1, 1, 5)>,
+				<NRF_PSEL(PWM_OUT2, 1, 6)>;
+		};
+	};
+	pwm21_default: pwm21_default {
+		group1 {
+			psels = <NRF_PSEL(PWM_OUT0, 1, 7)>;
 		};
 	};
 };

@@ -9,13 +9,25 @@ mqtt:
 
 # Lights to bridge. 'address' is the light node's Thread IPv6 address
 # (reachable via the border router on the same host/LAN as this bridge).
+#
+# Declare each light's capabilities so HA shows the right controls:
+#   brightness: true            -> dimmable white
+#   color_modes: ["rgbw"]       -> RGBW color (custom LED PCB)
+#   color_modes: ["rgb"]        -> RGB color
+#   color_modes: ["color_temp"] -> tunable white
+# color_modes takes precedence; brightness is implied when color is set.
 lights:
   - id: livingroom
     name: Living Room Light
     address: "fd11:22::abcd:1234:5678:9abc"
-    brightness: false
+    color_modes: ["rgbw"]      # custom RGBW LED PCB
 
-  - id: kitchen
-    name: Kitchen Light
+  - id: desk
+    name: Desk Light
     address: "fd11:22::abcd:1234:5678:9abd"
-    brightness: true
+    brightness: true           # dimmable, no color
+
+  - id: porch
+    name: Porch Light
+    address: "fd11:22::abcd:1234:5678:9abe"
+    # on/off only (no brightness/color keys)
