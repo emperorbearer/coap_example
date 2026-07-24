@@ -125,8 +125,6 @@ static void drive_output(void)
 
 int light_state_init(light_state_changed_cb cb)
 {
-	int err;
-
 	k_mutex_init(&g_lock);
 	g_cb = cb;
 
@@ -140,12 +138,12 @@ int light_state_init(light_state_changed_cb cb)
 		return -ENODEV;
 	}
 #endif
-	err = 0;
 #else
 	if (!gpio_is_ready_dt(&relay)) {
 		return -ENODEV;
 	}
-	err = gpio_pin_configure_dt(&relay, GPIO_OUTPUT_INACTIVE);
+	int err = gpio_pin_configure_dt(&relay, GPIO_OUTPUT_INACTIVE);
+
 	if (err) {
 		return err;
 	}

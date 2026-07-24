@@ -14,17 +14,18 @@ static struct binding_record bindings[SWITCH_MAX_BINDINGS];
 static struct coap_client coap_client;
 
 #define BINDING_SETTINGS_ROOT "sw"
+#define CMD_MAP_MAX_ENTRIES   8
 
 /* --- persistence --- */
 
 static int binding_settings_set(const char *name, size_t len,
 				settings_read_cb read_cb, void *cb_arg)
 {
-	int idx;
 	const char *next;
 
 	if (settings_name_steq(name, "bind", &next) && next) {
-		idx = atoi(next);
+		int idx = atoi(next);
+
 		if (idx < 0 || idx >= SWITCH_MAX_BINDINGS) {
 			return -EINVAL;
 		}
@@ -85,23 +86,49 @@ void binding_clear(void)
 	}
 }
 
-/* --- sending --- */
+/* --- encoding --- */
 
-/* Encode {"on":bool,"src":"switch"} into buf; returns length or negative. */
-static int encode_state(bool on, uint8_t *buf, size_t buf_len)
+/* Encode a light_cmd into a CBOR state map. Returns length or negative. */
+static int encode_cmd(const struct light_cmd *cmd, uint8_t *buf, size_t buf_len)
 {
 	ZCBOR_STATE_E(enc, 1, buf, buf_len, 1);
 	bool ok = true;
 
-	ok = ok && zcbor_map_start_encode(enc, 2);
-	ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_ON);
-	ok = ok && zcbor_bool_put(enc, on);
+	ok = ok && zcbor_map_start_encode(enc, CMD_MAP_MAX_ENTRIES);
+
+	if (cmd->has_on) {
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_ON);
+		ok = ok && zcbor_bool_put(enc, cmd->on);
+	}
+	if (cmd->has_bri) {
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_BRI);
+		ok = ok && zcbor_uint32_put(enc, cmd->bri);
+	}
+	if (cmd->has_rgb) {
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_R);
+		ok = ok && zcbor_uint32_put(enc, cmd->r);
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_G);
+		ok = ok && zcbor_uint32_put(enc, cmd->g);
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_B);
+		ok = ok && zcbor_uint32_put(enc, cmd->b);
+	}
+	if (cmd->has_w) {
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_W);
+		ok = ok && zcbor_uint32_put(enc, cmd->w);
+	}
+	if (cmd->has_ct) {
+		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_CT);
+		ok = ok && zcbor_uint32_put(enc, cmd->ct);
+	}
 	ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_SRC);
 	ok = ok && zcbor_tstr_put_lit(enc, LIGHT_SRC_SWITCH);
-	ok = ok && zcbor_map_end_encode(enc, 2);
+
+	ok = ok && zcbor_map_end_encode(enc, CMD_MAP_MAX_ENTRIES);
 
 	return ok ? (int)(enc->payload - buf) : -ENOMEM;
 }
+
+/* --- sending --- */
 
 static void coap_response_cb(int16_t code, size_t offset, const uint8_t *payload,
 			     size_t len, bool last_block, void *user_data)
@@ -119,7 +146,8 @@ static void coap_response_cb(int16_t code, size_t offset, const uint8_t *payload
 	}
 }
 
-static void send_to_binding(struct binding_record *b, bool maintained, bool on)
+static void send_to_binding(struct binding_record *b,
+			    const struct light_cmd *cmd)
 {
 	int sock;
 	struct sockaddr_in6 dst = {
@@ -127,16 +155,19 @@ static void send_to_binding(struct binding_record *b, bool maintained, bool on)
 		.sin6_port = htons(COAP_PORT),
 		.sin6_addr = b->target,
 	};
-	uint8_t payload[24];
-	int plen = 0;
+	uint8_t payload[48];
+	int plen;
+	bool toggle = cmd->toggle || b->mode == BINDING_MODE_POST_TOGGLE;
 	struct coap_client_request req = {
 		.confirmable = (b->flags & BINDING_FLAG_CONFIRMABLE) != 0,
 		.path = b->uri,
 		.cb = coap_response_cb,
 	};
 
-	if (maintained && b->mode == BINDING_MODE_PUT_STATE) {
-		plen = encode_state(on, payload, sizeof(payload));
+	if (toggle) {
+		req.method = COAP_METHOD_POST;
+	} else {
+		plen = encode_cmd(cmd, payload, sizeof(payload));
 		if (plen < 0) {
 			return;
 		}
@@ -144,9 +175,6 @@ static void send_to_binding(struct binding_record *b, bool maintained, bool on)
 		req.fmt = COAP_CONTENT_FORMAT_APP_CBOR;
 		req.payload = payload;
 		req.len = plen;
-	} else {
-		/* Momentary switch or explicit toggle binding. */
-		req.method = COAP_METHOD_POST;
 	}
 
 	sock = zsock_socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
@@ -154,23 +182,33 @@ static void send_to_binding(struct binding_record *b, bool maintained, bool on)
 		LOG_ERR("socket: %d", errno);
 		return;
 	}
-	if (zsock_connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0) {
+	if (zsock_connect(sock, (struct sockaddr *)&dst, sizeof(dst)) == 0) {
+		(void)coap_client_req(&coap_client, sock,
+				      (struct sockaddr *)&dst, &req, NULL);
+	} else {
 		LOG_ERR("connect: %d", errno);
-		zsock_close(sock);
-		return;
 	}
-
-	(void)coap_client_req(&coap_client, sock, (struct sockaddr *)&dst,
-			      &req, NULL);
-
 	zsock_close(sock);
+}
+
+void binding_send(const struct light_cmd *cmd)
+{
+	for (int i = 0; i < SWITCH_MAX_BINDINGS; i++) {
+		if (bindings[i].in_use) {
+			send_to_binding(&bindings[i], cmd);
+		}
+	}
 }
 
 void binding_dispatch(bool maintained, bool on)
 {
-	for (int i = 0; i < SWITCH_MAX_BINDINGS; i++) {
-		if (bindings[i].in_use) {
-			send_to_binding(&bindings[i], maintained, on);
-		}
+	struct light_cmd cmd = {0};
+
+	if (maintained) {
+		cmd.has_on = true;
+		cmd.on = on;
+	} else {
+		cmd.toggle = true;
 	}
+	binding_send(&cmd);
 }

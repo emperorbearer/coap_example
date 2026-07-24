@@ -2,13 +2,18 @@
 
 ## 1. 개요
 
-두 종류의 Thread 노드와 한 개의 브리지로 구성됩니다.
+여러 Thread 노드와 한 개의 브리지로 구성됩니다.
 
 | 역할 | 노드 | Thread 역할 | 전원 |
 |------|------|-------------|------|
-| 스위치(입력) | Switch Node | **SSED** (Synchronized Sleepy End Device) | 배터리 |
-| 전등(출력) | Light Node | **FTD/Router** (상시 라우터) | 상시 전원 |
+| 입력(온오프) | Inner Switch | **SSED** | 배터리 |
+| 입력(패널) | Panel Switch (버튼+엔코더) | **SSED** | 배터리 |
+| 출력(전등) | Light Node (SMPS+커스텀 LED PCB) | **FTD/Router** (상시 라우터) | 상시 전원(DC) |
 | 게이트웨이 | Border Router + Bridge | Leader/Border Router | 상시 전원 |
+
+두 종류의 스위치(온오프 이너 스위치, 버튼+엔코더 패널 스위치)는 동일한 SSED 전력
+전략과 **공유 바인딩 모듈**(`firmware/common/binding.c`)을 사용한다. 전등은 릴레이가
+아니라 RGBW LED 를 PWM 으로 직접 구동해 **색상·디밍**을 제공한다.
 
 핵심 아이디어:
 
