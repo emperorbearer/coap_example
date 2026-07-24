@@ -1,0 +1,21 @@
+# CoAP<->MQTT bridge configuration.
+# Copy to config.yaml and edit for your network.
+
+mqtt:
+  host: localhost
+  port: 1883
+  # username: user
+  # password: secret
+
+# Lights to bridge. 'address' is the light node's Thread IPv6 address
+# (reachable via the border router on the same host/LAN as this bridge).
+lights:
+  - id: livingroom
+    name: Living Room Light
+    address: "fd11:22::abcd:1234:5678:9abc"
+    brightness: false
+
+  - id: kitchen
+    name: Kitchen Light
+    address: "fd11:22::abcd:1234:5678:9abd"
+    brightness: true

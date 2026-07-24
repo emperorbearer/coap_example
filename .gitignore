@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+bridge/config.yaml
+
+# Zephyr / west build output
+build/
+twister-out*/
+*.o
+*.elf
+*.hex
+*.bin
