@@ -1,0 +1,17 @@
+/*
+ * Light node pin mapping for the ESP32-C6 DevKitC.
+ */
+/ {
+	aliases {
+		light-relay = &light_relay;
+	};
+
+	light_relays {
+		compatible = "gpio-leds";
+		light_relay: relay_0 {
+			/* Example GPIO; route to the relay/SSR driver input. */
+			gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+			label = "Light relay";
+		};
+	};
+};

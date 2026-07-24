@@ -1,0 +1,20 @@
+/*
+ * Light node pin mapping for the nRF54L15 DK.
+ * Maps the board-agnostic aliases used by the firmware to real pins.
+ * led0/sw0 already exist on the DK; we add the relay output alias.
+ */
+/ {
+	aliases {
+		light-relay = &light_relay;
+	};
+
+	light_relays {
+		compatible = "gpio-leds";
+		light_relay: relay_0 {
+			/* Route to the relay/SSR driver input. P1.10 here is an
+			 * example free header pin; adjust to the actual board. */
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+			label = "Light relay";
+		};
+	};
+};
