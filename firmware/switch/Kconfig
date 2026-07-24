@@ -1,0 +1,9 @@
+source "Kconfig.zephyr"
+
+config APP_SWITCH_MAINTAINED
+	bool "Wall switch is maintained (rocker) type"
+	default y
+	help
+	  When enabled, the switch reports the physical on/off position of a
+	  maintained wall switch (PUT explicit state). When disabled, the input
+	  is treated as a momentary push and each press toggles the light (POST).
