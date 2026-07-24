@@ -1,0 +1,51 @@
+/*
+ * Light node (custom LED PCB) on ESP32-H2. RGBW LEDs driven by the LEDC PWM
+ * peripheral for color + dimming.
+ *
+ * NOTE: LEDC channel/pin wiring is board-specific — confirm the GPIOs/pinmux
+ * against your custom PCB. See docs/hardware/light-node.md.
+ */
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pinctrl/esp32h2-pinctrl.h>
+
+/ {
+	aliases {
+		pwm-red = &led_r;
+		pwm-green = &led_g;
+		pwm-blue = &led_b;
+		pwm-white = &led_w;
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		led_r: led_r { pwms = <&ledc0 0 PWM_HZ(1000) PWM_POLARITY_NORMAL>; };
+		led_g: led_g { pwms = <&ledc0 1 PWM_HZ(1000) PWM_POLARITY_NORMAL>; };
+		led_b: led_b { pwms = <&ledc0 2 PWM_HZ(1000) PWM_POLARITY_NORMAL>; };
+		led_w: led_w { pwms = <&ledc0 3 PWM_HZ(1000) PWM_POLARITY_NORMAL>; };
+	};
+};
+
+&ledc0 {
+	pinctrl-0 = <&ledc0_default>;
+	pinctrl-names = "default";
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel0@0 { reg = <0x0>; timer = <0>; };
+	channel1@1 { reg = <0x1>; timer = <0>; };
+	channel2@2 { reg = <0x2>; timer = <0>; };
+	channel3@3 { reg = <0x3>; timer = <0>; };
+};
+
+&pinctrl {
+	ledc0_default: ledc0_default {
+		group1 {
+			pinmux = <LEDC_CH0_GPIO0>,
+				 <LEDC_CH1_GPIO1>,
+				 <LEDC_CH2_GPIO2>,
+				 <LEDC_CH3_GPIO3>;
+			output-enable;
+		};
+	};
+};

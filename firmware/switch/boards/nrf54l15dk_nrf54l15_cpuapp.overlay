@@ -1,0 +1,24 @@
+/*
+ * Switch node pin mapping for the nRF54L15 DK.
+ *
+ * "wall-switch" is the dry-contact input from the existing mechanical wall
+ * switch. It uses an internal pull-up here for bring-up on the DK; on the real
+ * battery board prefer a high-value external pull-up (>=1 MOhm) enabled only
+ * around edges to minimize leakage. The chosen pin must support GPIO SENSE so
+ * it can wake the SoC from deep sleep. See docs/hardware/switch-node.md.
+ */
+/ {
+	aliases {
+		wall-switch = &wall_switch_in;
+	};
+
+	wall_switch_inputs {
+		compatible = "gpio-keys";
+		wall_switch_in: wall_switch_in {
+			/* Example input pin; adjust to the terminal wired to the
+			 * wall-switch dry contact. Active low = contact closed. */
+			gpios = <&gpio1 11 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Wall switch contact";
+		};
+	};
+};
