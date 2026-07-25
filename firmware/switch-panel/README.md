@@ -24,6 +24,33 @@ brightness/color and sends **absolute** values (the CoAP protocol is stateful,
 not delta-based). The shadow may drift from the real light; a periodic `GET` or
 Observe could tighten sync at a power cost (see `docs/architecture.md`).
 
+## Status display (e-paper, optional)
+
+`src/display.c` renders a status screen on an e-paper panel via the Zephyr
+`display` API + CFB (character framebuffer): light on/off, brightness %, encoder
+mode, active color/color-temp, and battery %. It shows the **shadow** values.
+
+Design notes (see `../../docs/hardware/panel-switch.md` §4.2):
+
+- Refreshes are **coalesced** — a burst of encoder ticks collapses into one
+  update ~400 ms after activity settles — and a **full refresh** runs every N
+  updates to clear e-paper ghosting.
+- The code **self-disables** unless the board overlay chooses a `zephyr,display`,
+  so the default build (no display) still compiles and runs.
+
+To fit an e-paper (e.g. SSD1680):
+
+1. Merge `boards/epd-ssd1680.overlay.example` into your board overlay and set
+   the real pins, panel size, and **panel-specific SSD16xx waveform properties**
+   from your display's known-good DTS.
+2. Enable the display Kconfig options listed in `prj.conf`
+   (`CONFIG_DISPLAY`, `CONFIG_CHARACTER_FRAMEBUFFER`, `CONFIG_SSD16XX`,
+   `CONFIG_SPI`).
+3. Power the panel from an nPM1300 LDO/load-switch rail so it can be gated off.
+
+Battery % is stubbed (`-1`); wire it to the nPM1300 fuel gauge (see the nPM1300
+integration note below).
+
 ## Inputs
 
 Built on the Zephyr **input subsystem**: buttons via `gpio-keys`, the encoder

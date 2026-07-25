@@ -21,6 +21,7 @@
 #include <zephyr/logging/log.h>
 
 #include "binding.h"
+#include "display.h"
 
 LOG_MODULE_REGISTER(panel_main, LOG_LEVEL_INF);
 
@@ -32,20 +33,36 @@ LOG_MODULE_REGISTER(panel_main, LOG_LEVEL_INF);
 
 enum enc_mode { ENC_MODE_BRIGHTNESS = 0, ENC_MODE_CT, ENC_MODE_COUNT };
 
-/* Local shadow of what we last commanded. */
+/* Local shadow of what we last commanded (also drives the optional display). */
+static bool sh_on;
 static uint8_t sh_bri = LIGHT_BRI_MAX;
 static uint16_t sh_ct = 320;
 static enum enc_mode enc_mode = ENC_MODE_BRIGHTNESS;
 
 /* A few RGB presets cycled by KEY_2. First is plain white. */
-static const struct { uint8_t r, g, b; } presets[] = {
-	{ 255, 255, 255 }, /* white */
-	{ 255, 90, 20 },   /* warm */
-	{ 40, 120, 255 },  /* cool blue */
-	{ 40, 255, 90 },   /* green */
-	{ 255, 40, 120 },  /* pink */
+static const struct { uint8_t r, g, b; const char *name; } presets[] = {
+	{ 255, 255, 255, "White" },
+	{ 255, 90, 20, "Warm" },
+	{ 40, 120, 255, "Blue" },
+	{ 40, 255, 90, "Green" },
+	{ 255, 40, 120, "Pink" },
 };
 static int preset_idx;
+
+/* Push the current shadow to the (optional) e-paper display. */
+static void ui_push(void)
+{
+	struct panel_ui ui = {
+		.on = sh_on,
+		.bri = sh_bri,
+		.ct_mode = (enc_mode == ENC_MODE_CT),
+		.color = presets[preset_idx].name,
+		.ct = sh_ct,
+		.battery_pct = -1, /* TODO: read from nPM1300 fuel gauge */
+	};
+
+	panel_display_request(&ui);
+}
 
 static int clampi(int v, int lo, int hi)
 {
@@ -64,16 +81,20 @@ static void action_toggle(void)
 {
 	struct light_cmd cmd = { .toggle = true };
 
+	sh_on = !sh_on; /* shadow only; the light is the real source of truth */
 	LOG_INF("toggle");
 	binding_send(&cmd);
+	ui_push();
 }
 
 static void action_all_off(void)
 {
 	struct light_cmd cmd = { .has_on = true, .on = false };
 
+	sh_on = false;
 	LOG_INF("all off");
 	binding_send(&cmd);
+	ui_push();
 }
 
 static void action_cycle_mode(void)
@@ -81,6 +102,7 @@ static void action_cycle_mode(void)
 	enc_mode = (enc_mode + 1) % ENC_MODE_COUNT;
 	LOG_INF("encoder mode -> %s",
 		enc_mode == ENC_MODE_BRIGHTNESS ? "brightness" : "color-temp");
+	ui_push();
 }
 
 static void action_cycle_preset(void)
@@ -91,8 +113,10 @@ static void action_cycle_preset(void)
 	cmd.r = presets[preset_idx].r;
 	cmd.g = presets[preset_idx].g;
 	cmd.b = presets[preset_idx].b;
+	sh_on = true;
 	LOG_INF("preset %d", preset_idx);
 	binding_send(&cmd);
+	ui_push();
 }
 
 static void action_rotate(int delta)
@@ -111,7 +135,9 @@ static void action_rotate(int delta)
 		cmd.ct = sh_ct;
 		LOG_INF("color-temp -> %u mireds", sh_ct);
 	}
+	sh_on = true;
 	binding_send(&cmd);
+	ui_push();
 }
 
 /* --- input handling --- */
@@ -155,6 +181,10 @@ int main(void)
 		LOG_ERR("binding init failed");
 		return -1;
 	}
+
+	/* Optional e-paper status display (no-op if none is fitted). */
+	panel_display_init();
+	ui_push(); /* draw the initial screen */
 
 	LOG_INF("panel ready; sleeping between events");
 	/* All control is input-driven; the SSED sleeps otherwise. */
