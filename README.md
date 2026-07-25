@@ -47,7 +47,7 @@ Home Assistant 같은 스마트홈 플랫폼에 노출됩니다.
 
 - **스위치 노드(온오프/패널)**: nRF54L15 — 초저전력, Thread Sleepy End Device(SED)로
   배터리 수명 극대화. 전원은 타입별로 다름 — 이너릴레이 타입은 **코인셀 1차 전지**,
-  월스위치(패널) 타입은 **리튬이온 + nPM1100 PMIC**(충전+벅).
+  월스위치(패널) 타입은 **리튬이온 + nPM1300 PMIC**(USB-C 충전 + 다중 레일 + 퓨얼게이지).
 - **전등 노드**: KC 인증 SMPS 로 DC 를 공급받는 커스텀 LED+MCU PCB. Zephyr가 Thread를
   지원하는 다음 MCU를 목표로 하며 보드 오버레이로 이식(색상·디밍은 PWM 백엔드).
   - nRF54L15 / nRF52840 (Nordic) — RGBW PWM 레퍼런스

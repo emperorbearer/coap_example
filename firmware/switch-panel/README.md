@@ -43,6 +43,21 @@ Same binding model as the inner switch — the lights this panel controls are
 stored in NVS. Add via `binding_add()` during bring-up or implement the
 commissioning/discovery flow (see `../../docs/coap-resource-model.md`).
 
+## Power (nPM1300 PMIC)
+
+This panel is powered by a rechargeable Li-ion cell managed by an **nPM1300**
+PMIC (USB-C charging, dual buck + LDO, fuel-gauge measurements) — see
+`../../docs/hardware/panel-switch.md`. Firmware integration (add when running on
+the real PCB; the DK overlay here has no nPM1300 so it is left out of the build):
+
+- DeviceTree: add the `nordic,npm1300` MFD node on I2C with its `regulator`,
+  `charger` (`npm1300_charger`), and `gpio` child nodes.
+- Kconfig: `CONFIG_MFD=y`, `CONFIG_REGULATOR=y`, `CONFIG_REGULATOR_NPM1300=y`,
+  `CONFIG_CHARGER=y`, `CONFIG_CHARGER_NPM1300=y`, `CONFIG_GPIO_NPM1300=y`,
+  plus the **nRF Fuel Gauge** library for state-of-charge from VBAT/current/temp.
+- Report battery % as telemetry (e.g. periodic `POST`), and surface charge/USB
+  events from the charger driver callbacks.
+
 ## Notes / TODO
 
 - `INPUT_CALLBACK_DEFINE(NULL, input_cb)` subscribes to all input devices; some
