@@ -11,29 +11,23 @@ LOG_MODULE_REGISTER(light_state, LOG_LEVEL_INF);
 /*
  * Output back end is selected at build time from the board overlay:
  *
- *   - Custom LED PCB (this project's light): PWM channels pwm-red/green/blue
- *     (+ optional pwm-white) drive the LEDs, giving color + dimming.
+ *   - Tunable-white LED PCB (this project's light): two PWM channels
+ *     pwm-cw (cool white) and pwm-ww (warm white) give brightness + color
+ *     temperature. The CW/WW split is derived from the color temperature and
+ *     both are scaled by the master brightness.
  *   - Simple on/off fixture: a single "light-relay" GPIO.
  *
- * If the PWM aliases are present we use them; otherwise we fall back to the
- * relay GPIO. See docs/hardware/light-node.md.
+ * See docs/hardware/light-node.md.
  */
-#if DT_NODE_EXISTS(DT_ALIAS(pwm_red)) && \
-	DT_NODE_EXISTS(DT_ALIAS(pwm_green)) && \
-	DT_NODE_EXISTS(DT_ALIAS(pwm_blue))
-#define HAVE_RGB_PWM 1
-static const struct pwm_dt_spec pwm_r = PWM_DT_SPEC_GET(DT_ALIAS(pwm_red));
-static const struct pwm_dt_spec pwm_g = PWM_DT_SPEC_GET(DT_ALIAS(pwm_green));
-static const struct pwm_dt_spec pwm_b = PWM_DT_SPEC_GET(DT_ALIAS(pwm_blue));
-#if DT_NODE_EXISTS(DT_ALIAS(pwm_white))
-#define HAVE_WHITE_PWM 1
-static const struct pwm_dt_spec pwm_w = PWM_DT_SPEC_GET(DT_ALIAS(pwm_white));
-#endif
+#if DT_NODE_EXISTS(DT_ALIAS(pwm_cw)) && DT_NODE_EXISTS(DT_ALIAS(pwm_ww))
+#define HAVE_CCT_PWM 1
+static const struct pwm_dt_spec pwm_cw = PWM_DT_SPEC_GET(DT_ALIAS(pwm_cw));
+static const struct pwm_dt_spec pwm_ww = PWM_DT_SPEC_GET(DT_ALIAS(pwm_ww));
 #else
-#define HAVE_RGB_PWM 0
+#define HAVE_CCT_PWM 0
 #define LIGHT_RELAY_NODE DT_ALIAS(light_relay)
 #if !DT_NODE_EXISTS(LIGHT_RELAY_NODE)
-#error "Board overlay must define RGB pwm aliases or a 'light-relay' GPIO alias"
+#error "Board overlay must define pwm-cw/pwm-ww aliases or a 'light-relay' GPIO"
 #endif
 static const struct gpio_dt_spec relay =
 	GPIO_DT_SPEC_GET(LIGHT_RELAY_NODE, gpios);
@@ -47,11 +41,11 @@ static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 static struct light_state g_state = {
 	.on = false,
-#if HAVE_RGB_PWM
-	.bri = LIGHT_BRI_MAX, /* dimmable LED fixture: default full brightness */
-	.r = 255, .g = 255, .b = 255,
+#if HAVE_CCT_PWM
+	.bri = LIGHT_BRI_MAX,               /* tunable-white: full brightness */
+	.ct = (LIGHT_CT_MIN + LIGHT_CT_MAX) / 2, /* neutral color temp */
 #else
-	.bri = 0,             /* on/off fixture: brightness unsupported */
+	.bri = 0,                           /* on/off fixture: no dimming */
 #endif
 	.seq = 0,
 };
@@ -91,14 +85,13 @@ static void state_persist(void)
 
 /* --- output --- */
 
-#if HAVE_RGB_PWM
-/* Set one channel: duty = channel(0..255) * bri(0..254) / (255*254) of period.
+#if HAVE_CCT_PWM
+/* Set one channel: duty = value(0..255) * bri(0..254) / (255*254) of period.
  * When off, duty is 0. */
 static void set_channel(const struct pwm_dt_spec *ch, uint8_t value)
 {
 	uint32_t period = ch->period;
 	uint32_t bri = g_state.on ? g_state.bri : 0;
-	/* scale: value/255 * bri/254 */
 	uint32_t pulse = (uint32_t)((uint64_t)period * value * bri /
 				    (255u * LIGHT_BRI_MAX));
 
@@ -108,13 +101,25 @@ static void set_channel(const struct pwm_dt_spec *ch, uint8_t value)
 
 static void drive_output(void)
 {
-#if HAVE_RGB_PWM
-	set_channel(&pwm_r, g_state.r);
-	set_channel(&pwm_g, g_state.g);
-	set_channel(&pwm_b, g_state.b);
-#if defined(HAVE_WHITE_PWM)
-	set_channel(&pwm_w, g_state.w);
-#endif
+#if HAVE_CCT_PWM
+	/* Map color temperature (mireds) to a cool/warm split. Higher mired =
+	 * warmer, so warm_frac rises toward LIGHT_CT_MAX. cw + ww values sum to
+	 * 255 so overall output stays ~constant across the CT range. */
+	uint16_t ct = g_state.ct;
+
+	if (ct < LIGHT_CT_MIN) {
+		ct = LIGHT_CT_MIN;
+	}
+	if (ct > LIGHT_CT_MAX) {
+		ct = LIGHT_CT_MAX;
+	}
+	uint32_t warm = (uint32_t)(ct - LIGHT_CT_MIN) * 255u /
+			(LIGHT_CT_MAX - LIGHT_CT_MIN);
+	uint8_t ww_val = (uint8_t)warm;
+	uint8_t cw_val = (uint8_t)(255u - warm);
+
+	set_channel(&pwm_cw, cw_val);
+	set_channel(&pwm_ww, ww_val);
 #else
 	gpio_pin_set_dt(&relay, g_state.on ? 1 : 0);
 #endif
@@ -128,16 +133,10 @@ int light_state_init(light_state_changed_cb cb)
 	k_mutex_init(&g_lock);
 	g_cb = cb;
 
-#if HAVE_RGB_PWM
-	if (!pwm_is_ready_dt(&pwm_r) || !pwm_is_ready_dt(&pwm_g) ||
-	    !pwm_is_ready_dt(&pwm_b)) {
+#if HAVE_CCT_PWM
+	if (!pwm_is_ready_dt(&pwm_cw) || !pwm_is_ready_dt(&pwm_ww)) {
 		return -ENODEV;
 	}
-#if defined(HAVE_WHITE_PWM)
-	if (!pwm_is_ready_dt(&pwm_w)) {
-		return -ENODEV;
-	}
-#endif
 #else
 	if (!gpio_is_ready_dt(&relay)) {
 		return -ENODEV;
@@ -162,8 +161,8 @@ int light_state_init(light_state_changed_cb cb)
 	if (g_cb) {
 		g_cb(&g_state, LIGHT_SRC_BOOT);
 	}
-	LOG_INF("light init: on=%d bri=%d seq=%u", g_state.on, g_state.bri,
-		g_state.seq);
+	LOG_INF("light init: on=%d bri=%d ct=%u seq=%u", g_state.on,
+		g_state.bri, g_state.ct, g_state.seq);
 	return 0;
 }
 
@@ -193,25 +192,10 @@ void light_state_apply(const struct light_update *upd, const char *src)
 		}
 		changed = true;
 	}
-	if (upd->has_rgb &&
-	    (upd->r != g_state.r || upd->g != g_state.g || upd->b != g_state.b)) {
-		g_state.r = upd->r;
-		g_state.g = upd->g;
-		g_state.b = upd->b;
-		g_state.ct = 0; /* leaving color-temp mode */
-		if (!g_state.on) {
-			g_state.on = true; /* color change implies on */
-		}
-		changed = true;
-	}
-	if (upd->has_w && upd->w != g_state.w) {
-		g_state.w = upd->w;
-		changed = true;
-	}
 	if (upd->has_ct && upd->ct != g_state.ct) {
 		g_state.ct = upd->ct;
 		if (!g_state.on) {
-			g_state.on = true;
+			g_state.on = true; /* CT change implies on */
 		}
 		changed = true;
 	}

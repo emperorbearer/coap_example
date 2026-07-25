@@ -14,7 +14,7 @@ static struct binding_record bindings[SWITCH_MAX_BINDINGS];
 static struct coap_client coap_client;
 
 #define BINDING_SETTINGS_ROOT "sw"
-#define CMD_MAP_MAX_ENTRIES   8
+#define CMD_MAP_MAX_ENTRIES   5
 
 /* --- persistence --- */
 
@@ -103,18 +103,6 @@ static int encode_cmd(const struct light_cmd *cmd, uint8_t *buf, size_t buf_len)
 	if (cmd->has_bri) {
 		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_BRI);
 		ok = ok && zcbor_uint32_put(enc, cmd->bri);
-	}
-	if (cmd->has_rgb) {
-		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_R);
-		ok = ok && zcbor_uint32_put(enc, cmd->r);
-		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_G);
-		ok = ok && zcbor_uint32_put(enc, cmd->g);
-		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_B);
-		ok = ok && zcbor_uint32_put(enc, cmd->b);
-	}
-	if (cmd->has_w) {
-		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_W);
-		ok = ok && zcbor_uint32_put(enc, cmd->w);
 	}
 	if (cmd->has_ct) {
 		ok = ok && zcbor_tstr_put_lit(enc, LIGHT_KEY_CT);

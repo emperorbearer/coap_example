@@ -1,0 +1,54 @@
+/*
+ * EXAMPLE overlay to fit an SSD1680-class e-paper display to the panel switch.
+ *
+ * This file is intentionally named *.overlay.example so it is NOT applied
+ * automatically. To use it, merge its contents into your board overlay (or pass
+ * it explicitly), and enable the display Kconfig options listed in prj.conf.
+ *
+ * IMPORTANT: pins, panel size, and especially the SSD16xx waveform/timing
+ * properties are PANEL-SPECIFIC. Copy the exact values from your e-paper
+ * vendor's datasheet or a known-good Zephyr DTS for your panel (see Zephyr's
+ * ssd16xx samples/boards). The values below are a starting template only.
+ *
+ * Target here: nRF54L15 DK, SPI22. Adjust the SPI instance and pins to match
+ * how you wire the display on the real switch-cover PCB.
+ */
+#include <zephyr/dt-bindings/gpio/gpio.h>
+
+/ {
+	chosen {
+		zephyr,display = &epd_ssd1680;
+	};
+};
+
+&spi22 {
+	status = "okay";
+	cs-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&spi22_epd>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	epd_ssd1680: ssd1680@0 {
+		compatible = "solomon,ssd1680";
+		reg = <0>;
+		spi-max-frequency = <4000000>;
+		width = <250>;              /* set to your panel */
+		height = <122>;             /* set to your panel */
+		dc-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+		busy-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		/* Some panels require additional properties (e.g. border-waveform,
+		 * tssv, orientation, or full/partial waveform child nodes). Add
+		 * them from your panel's known-good DTS. */
+	};
+};
+
+&pinctrl {
+	spi22_epd: spi22_epd {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 1, 19)>,
+				<NRF_PSEL(SPIM_MOSI, 1, 20)>;
+		};
+	};
+};
