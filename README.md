@@ -35,7 +35,9 @@ Home Assistant 같은 스마트홈 플랫폼에 노출됩니다.
 | `docs/coap-resource-model.md` | CoAP 자원 모델, 스위치–전등 바인딩 프로토콜, 페이로드 포맷 |
 | `docs/hardware/switch-node.md` | 온오프 이너 스위치(nRF54L15) 하드웨어 설계·폼팩터·BOM |
 | `docs/hardware/panel-switch.md` | 패널 스위치(버튼+엔코더) 하드웨어 설계·BOM |
-| `docs/hardware/light-node.md` | 전등 노드(SMPS+커스텀 LED PCB) 하드웨어 설계·BOM |
+| `docs/hardware/light-node.md` | 전등 노드(SMPS+모듈러 LED 보드) 하드웨어 설계·BOM |
+| `docs/hardware/parts-candidates.md` | 전등 부품 후보표(LED·CC 드라이버·벅·SMPS·라디오 모듈) |
+| `docs/hardware/power-budget.md` | 스위치 배터리 수명 분석 |
 | `docs/home-assistant.md` | CoAP→MQTT 브리지 및 Home Assistant 연동 설계 |
 | `firmware/common/` | 공유 CoAP 자원 정의 + 바인딩 모듈 |
 | `firmware/switch/` | 온오프 이너 스위치 Zephyr 앱 (nRF54L15) |
