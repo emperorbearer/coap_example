@@ -48,8 +48,24 @@ To fit an e-paper (e.g. SSD1680):
    `CONFIG_SPI`).
 3. Power the panel from an nPM1300 LDO/load-switch rail so it can be gated off.
 
-Battery % is stubbed (`-1`); wire it to the nPM1300 fuel gauge (see the nPM1300
-integration note below).
+## Battery gauge (nPM1300, optional)
+
+`src/battery.c` reads the **nPM1300 charger** (voltage/current/temperature) and
+runs the **nRF Fuel Gauge** library to produce a state-of-charge %, shown on the
+display and refreshed every 30 min. Like the display, it **self-disables** unless
+an `npm1300_charger` node exists in DT, so the default build is unaffected.
+
+To enable (nRF Connect SDK):
+
+1. Merge `boards/npm1300.overlay.example` into your board overlay and set the
+   real I2C instance/pins and **charger limits/thermistor** for your cell.
+2. Enable the nPM1300 + fuel-gauge Kconfig options listed in `prj.conf`
+   (`CONFIG_NPM1300_CHARGER`, `CONFIG_NRF_FUEL_GAUGE`, `CONFIG_FPU`, …).
+3. Provide your Li-ion cell's **battery model** (`battery_model`) — generate it
+   for your cell and link it in; see the NCS `npm1300_fuel_gauge` sample.
+
+Without an nPM1300, `battery_soc_pct()` returns `-1` and the display omits the
+battery line.
 
 ## Inputs
 

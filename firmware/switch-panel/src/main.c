@@ -22,6 +22,7 @@
 
 #include "binding.h"
 #include "display.h"
+#include "battery.h"
 
 LOG_MODULE_REGISTER(panel_main, LOG_LEVEL_INF);
 
@@ -58,10 +59,22 @@ static void ui_push(void)
 		.ct_mode = (enc_mode == ENC_MODE_CT),
 		.color = presets[preset_idx].name,
 		.ct = sh_ct,
-		.battery_pct = -1, /* TODO: read from nPM1300 fuel gauge */
+		.battery_pct = battery_soc_pct(), /* -1 if no nPM1300 fitted */
 	};
 
 	panel_display_request(&ui);
+}
+
+/* Periodically refresh the display so the battery %% stays current even with
+ * no user activity. Battery changes slowly, so this can be infrequent. */
+#define BATTERY_REFRESH_MIN 30
+static struct k_work_delayable battery_work;
+
+static void battery_handler(struct k_work *work)
+{
+	ARG_UNUSED(work);
+	ui_push();
+	k_work_reschedule(&battery_work, K_MINUTES(BATTERY_REFRESH_MIN));
 }
 
 static int clampi(int v, int lo, int hi)
@@ -182,9 +195,16 @@ int main(void)
 		return -1;
 	}
 
+	/* Battery fuel gauge (no-op if no nPM1300 fitted). */
+	battery_init();
+
 	/* Optional e-paper status display (no-op if none is fitted). */
 	panel_display_init();
 	ui_push(); /* draw the initial screen */
+
+	/* Keep the battery %% on the display fresh over time. */
+	k_work_init_delayable(&battery_work, battery_handler);
+	k_work_reschedule(&battery_work, K_MINUTES(BATTERY_REFRESH_MIN));
 
 	LOG_INF("panel ready; sleeping between events");
 	/* All control is input-driven; the SSED sleeps otherwise. */
