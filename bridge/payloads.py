@@ -1,18 +1,23 @@
 """Pure payload conversions and light config for the CoAP<->MQTT bridge.
 
 Kept free of network dependencies (aiocoap/aiomqtt) so the conversion logic is
-unit-testable on its own. See ../docs/home-assistant.md.
+unit-testable on its own. The light is tunable white: brightness + color
+temperature (mireds). See ../docs/home-assistant.md.
 """
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import cbor2
 
 CT_CBOR = 60  # application/cbor
 DISCOVERY_PREFIX = "homeassistant"
 BASE_TOPIC = "coapbridge/light"
+
+# Color-temperature range in mireds (matches firmware/common/coap_resources.h).
+CT_MIN_MIREDS = 153  # ~6500 K
+CT_MAX_MIREDS = 370  # ~2700 K
 
 
 @dataclass
@@ -21,9 +26,7 @@ class LightCfg:
     address: str            # IPv6 address or hostname of the light node
     name: str = ""
     brightness: bool = False
-    # HA color modes this light supports, e.g. ["rgbw"], ["rgb"],
-    # ["color_temp"], or a combination. Empty => no color.
-    color_modes: list = field(default_factory=list)
+    color_temp: bool = False  # tunable white (color temperature) support
 
     @property
     def uri(self) -> str:
@@ -38,24 +41,14 @@ class LightCfg:
 
 
 def coap_state_to_ha(payload: bytes) -> dict:
-    """CBOR light state -> HA JSON light state (with color/brightness)."""
+    """CBOR light state -> HA JSON light state (brightness + color temp)."""
     state = cbor2.loads(payload) if payload else {}
     ha = {"state": "ON" if state.get("on") else "OFF"}
     if "bri" in state:
         ha["brightness"] = int(state["bri"])
-
     if "ct" in state:
         ha["color_mode"] = "color_temp"
         ha["color_temp"] = int(state["ct"])
-    elif all(k in state for k in ("r", "g", "b")):
-        color = {"r": int(state["r"]), "g": int(state["g"]),
-                 "b": int(state["b"])}
-        if "w" in state:
-            color["w"] = int(state["w"])
-            ha["color_mode"] = "rgbw"
-        else:
-            ha["color_mode"] = "rgb"
-        ha["color"] = color
     return ha
 
 
@@ -69,11 +62,6 @@ def ha_command_to_coap(payload: bytes) -> bytes:
         out["bri"] = int(cmd["brightness"])
     if "color_temp" in cmd:
         out["ct"] = int(cmd["color_temp"])
-    if "color" in cmd and isinstance(cmd["color"], dict):
-        color = cmd["color"]
-        for ch in ("r", "g", "b", "w"):
-            if ch in color:
-                out[ch] = int(color[ch])
     out["src"] = "bridge"
     return cbor2.dumps(out)
 
@@ -93,11 +81,12 @@ def discovery_config(cfg: LightCfg) -> dict:
             "model": "Light Node",
         },
     }
-    if cfg.color_modes:
-        # With color modes, brightness is implied by HA; don't also set the
-        # brightness flag (they are mutually exclusive in the JSON schema).
-        conf["supported_color_modes"] = cfg.color_modes
+    if cfg.color_temp:
+        # color_temp mode implies brightness in HA's JSON schema.
+        conf["supported_color_modes"] = ["color_temp"]
         conf["brightness_scale"] = 254
+        conf["min_mireds"] = CT_MIN_MIREDS
+        conf["max_mireds"] = CT_MAX_MIREDS
     elif cfg.brightness:
         conf["brightness"] = True
         conf["brightness_scale"] = 254

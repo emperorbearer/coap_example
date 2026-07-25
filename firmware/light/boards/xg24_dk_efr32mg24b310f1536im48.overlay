@@ -1,16 +1,16 @@
 /*
  * Light node on Silicon Labs xG24 / EFR32MG24 (MGM240 core).
  *
- * The firmware supports RGBW color+dimming via PWM (aliases pwm-red/green/
- * blue/white) OR simple on/off via a "light-relay" GPIO. PWM driver coverage
- * for Silabs Series 2 in Zephyr varies by SDK version, so this overlay ships
- * the on/off relay back end to guarantee a clean build.
+ * The firmware supports tunable-white (CW/WW) dimming via PWM (aliases pwm-cw/
+ * pwm-ww) OR simple on/off via a "light-relay" GPIO. PWM driver coverage for
+ * Silabs Series 2 in Zephyr varies by SDK version, so this overlay ships the
+ * on/off relay back end to guarantee a clean build.
  *
- * To enable color+dimming on this SoC:
+ * To enable color-temperature + dimming on this SoC:
  *   1. Confirm a PWM provider node is available for your EFR32MG24 in your
  *      Zephyr/SDK version (enable it with status = "okay").
- *   2. Replace the block below with a "pwm-leds" node + pwm-red/green/blue/
- *      white aliases, mirroring boards/nrf54l15dk_nrf54l15_cpuapp.overlay.
+ *   2. Replace the block below with a "pwm-leds" node + pwm-cw/pwm-ww aliases,
+ *      mirroring boards/nrf54l15dk_nrf54l15_cpuapp.overlay.
  * See docs/hardware/light-node.md.
  */
 / {

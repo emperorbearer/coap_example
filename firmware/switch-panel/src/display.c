@@ -43,11 +43,11 @@ static void render(bool full)
 	snprintf(line, sizeof(line), "Enc: %s", g_ui.ct_mode ? "TEMP" : "BRIGHT");
 	cfb_print(disp, line, 0, 32);
 
-	if (g_ui.ct_mode) {
-		snprintf(line, sizeof(line), "CT: %u", g_ui.ct);
+	/* Show color temperature in kelvin (mireds -> K). */
+	if (g_ui.ct > 0) {
+		snprintf(line, sizeof(line), "CT: %uK", 1000000u / g_ui.ct);
 	} else {
-		snprintf(line, sizeof(line), "Color: %s",
-			 g_ui.color ? g_ui.color : "-");
+		snprintf(line, sizeof(line), "CT: -");
 	}
 	cfb_print(disp, line, 0, 48);
 

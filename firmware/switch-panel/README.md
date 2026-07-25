@@ -1,7 +1,7 @@
 # Panel switch firmware
 
 Battery-powered Thread **SSED** in a switch-cover-sized PCB with several buttons
-and a rotary encoder. Controls bound lights over CoAP (color, brightness, color
+and a rotary encoder. Controls bound lights over CoAP (on/off, brightness, color
 temperature) using the shared binding module (`../common/binding.c`).
 
 ## Controls (default mapping)
@@ -10,7 +10,7 @@ temperature) using the shared binding module (`../common/binding.c`).
 |-------|--------|
 | Button KEY_0 | toggle on/off |
 | Button KEY_1 | cycle encoder mode (brightness ↔ color temperature) |
-| Button KEY_2 | cycle RGB color preset |
+| Button KEY_2 | cycle color-temperature preset (warm / neutral / cool) |
 | Button KEY_3 | all off |
 | Encoder push (KEY_ENTER) | toggle on/off |
 | Encoder turn | adjust the active mode's value |
@@ -20,15 +20,15 @@ Remap by editing `src/main.c` (`input_cb`) and the board overlay's key codes.
 ## Local shadow
 
 The SSED doesn't continuously track the light, so it keeps a local shadow of
-brightness/color and sends **absolute** values (the CoAP protocol is stateful,
-not delta-based). The shadow may drift from the real light; a periodic `GET` or
-Observe could tighten sync at a power cost (see `docs/architecture.md`).
+brightness/color-temperature and sends **absolute** values (the CoAP protocol is
+stateful, not delta-based). The shadow may drift from the real light; a periodic
+`GET` or Observe could tighten sync at a power cost (see `docs/architecture.md`).
 
 ## Status display (e-paper, optional)
 
 `src/display.c` renders a status screen on an e-paper panel via the Zephyr
 `display` API + CFB (character framebuffer): light on/off, brightness %, encoder
-mode, active color/color-temp, and battery %. It shows the **shadow** values.
+mode, color temperature (K), and battery %. It shows the **shadow** values.
 
 Design notes (see `../../docs/hardware/panel-switch.md` §4.2):
 

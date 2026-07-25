@@ -19,7 +19,6 @@ struct panel_ui {
 	bool on;             /* last-commanded on/off (shadow) */
 	uint8_t bri;         /* 1..254 */
 	bool ct_mode;        /* encoder adjusts color temp (true) or brightness */
-	const char *color;   /* active RGB preset name, or NULL */
 	uint16_t ct;         /* color temperature, mireds */
 	int battery_pct;     /* 0..100, or -1 if unknown */
 };
