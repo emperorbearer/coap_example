@@ -20,13 +20,11 @@ struct binding_record {
 };
 
 /* A command to send to bound lights. Only fields with their has_* flag set
- * (or 'toggle') are included in the request. */
+ * (or 'toggle') are included in the request. Tunable white: brightness + CT. */
 struct light_cmd {
 	bool toggle;             /* POST toggle instead of PUT state */
 	bool has_on;  bool on;
 	bool has_bri; uint8_t bri;
-	bool has_rgb; uint8_t r, g, b;
-	bool has_w;   uint8_t w;
 	bool has_ct;  uint16_t ct;
 };
 

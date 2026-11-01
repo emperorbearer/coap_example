@@ -45,7 +45,7 @@
 | Command | `coapbridge/light/<id>/set` |
 | Availability | `coapbridge/light/<id>/availability` |
 
-Discovery 설정 페이로드(예, on/off + 선택적 밝기):
+Discovery 설정 페이로드(튜너블 화이트: 밝기 + 색온도):
 
 ```json
 {
@@ -55,8 +55,10 @@ Discovery 설정 페이로드(예, on/off + 선택적 밝기):
   "state_topic": "coapbridge/light/<id>/state",
   "command_topic": "coapbridge/light/<id>/set",
   "availability_topic": "coapbridge/light/<id>/availability",
-  "brightness": true,
+  "supported_color_modes": ["color_temp"],
   "brightness_scale": 254,
+  "min_mireds": 153,
+  "max_mireds": 370,
   "device": {
     "identifiers": ["coap_light_<id>"],
     "manufacturer": "coap-thread-switch-light",
@@ -68,10 +70,11 @@ Discovery 설정 페이로드(예, on/off + 선택적 밝기):
 
 `schema: json` 을 사용하므로 state/command 페이로드는 HA JSON light 스키마를 따른다:
 
-- State/Command 예: `{"state": "ON", "brightness": 254}`
-- 브리지가 이 HA JSON ↔ 전등 CBOR 상태 객체(`{"on":true,"bri":254}`)를 변환.
+- State/Command 예: `{"state": "ON", "brightness": 254, "color_temp": 261}`
+- 브리지가 이 HA JSON ↔ 전등 CBOR 상태 객체(`{"on":true,"bri":254,"ct":261}`)를 변환.
 
-디밍 미지원 전등은 discovery 에서 `brightness` 를 생략하고 on/off 만 노출.
+색온도 모드는 밝기를 함의한다. 디밍만 지원하는 전등은 `brightness`만, on/off 전용은
+둘 다 생략한다.
 
 ## 4. 가용성(Availability)
 

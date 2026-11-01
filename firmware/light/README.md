@@ -1,8 +1,9 @@
 # Light node firmware
 
-Thread **FTD/Router** for the custom LED+MCU PCB (powered from a KC-certified
-SMPS DC rail). Exposes a CoAP-controlled light with **color + dimming** and
-notifies observers (switch nodes + Home Assistant bridge) on every state change.
+Thread **FTD/Router** for the tunable-white LED+MCU PCB (powered from a
+KC-certified SMPS DC rail). Exposes a CoAP-controlled light with **color
+temperature + dimming** and notifies observers (switch nodes + Home Assistant
+bridge) on every state change.
 
 ## CoAP resources
 
@@ -12,7 +13,7 @@ notifies observers (switch nodes + Home Assistant bridge) on every state change.
 | `/light/state` | GET + **Observe** | Observable state (RFC 7641) |
 
 Payload is CBOR (`application/cbor`, ct=60):
-`{"on":bool,"bri":1..254?,"r":0..255?,"g":?,"b":?,"w":?,"ct":?,"seq":uint}`.
+`{"on":bool,"bri":1..254?,"ct":153..370?,"seq":uint}` (ct in mireds).
 See `../../docs/coap-resource-model.md`.
 
 ## Output back end (selected by board overlay)
@@ -22,13 +23,13 @@ supported MCU. Two back ends are supported:
 
 | aliases | back end |
 |---------|----------|
-| `pwm-red`, `pwm-green`, `pwm-blue` (+ optional `pwm-white`) | RGBW PWM: color + dimming (custom LED PCB) |
+| `pwm-cw`, `pwm-ww` | tunable white: cool/warm PWM → color temperature + dimming |
 | `light-relay` | single GPIO: on/off only (fallback) |
 | `led0` | status LED mirroring on/off (optional) |
 
-If the RGB PWM aliases exist the firmware drives the LEDs by PWM
-(`channel × bri / 254`); otherwise it falls back to the relay GPIO. See
-`boards/nrf54l15dk_nrf54l15_cpuapp.overlay` for the reference RGBW mapping and
+With the CW/WW aliases the firmware derives a cool/warm split from `ct` and
+scales both by `bri`; otherwise it falls back to the relay GPIO. See
+`boards/nrf54l15dk_nrf54l15_cpuapp.overlay` for the reference CW/WW mapping and
 `../../docs/hardware/light-node.md` for the driver design.
 
 ## Build
@@ -58,10 +59,8 @@ as an FTD/Router and stays awake to route for sleepy switch nodes.
 - `/.well-known/core` lists resource paths via `CONFIG_COAP_SERVER_WELL_KNOWN_CORE`.
   Advertising `rt="light.switch"` for discovery needs a custom link-format
   handler; add if you rely on `?rt=` filtering (see resource model doc).
-- Color is linear RGB(W). Add a gamma/white-balance LUT in
-  `light_state.c:set_channel()` for better color fidelity if needed.
-- Tunable white (`ct`) is carried in state but mapping to CW/WW channels is
-  hardware-specific; wire it in the overlay + `set_channel()` when supported.
+- The CW/WW split from `ct` is a simple linear mix; add a calibration/gamma LUT
+  in `light_state.c:drive_output()` for better CCT accuracy if needed.
 - PWM overlays for ESP32/Silabs are examples — confirm the PWM provider node,
   channels, and pins for your board/SoC (Silabs ships on/off by default).
 - OpenThread maturity varies by platform on Zephyr; verify ESP32-H2/C6 against
